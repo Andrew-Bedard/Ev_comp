@@ -87,37 +87,98 @@ public class player50 implements ContestSubmission
     public void run()
     {
         int evals = 0;
-        int popIndex;
+        int index;
 
-        double[] popFitness = new double[popSize];
-        double[][] parents  = new double[selectionSize][10];
-        double[][] children = new double[selectionSize][10];
+        double[][] popFitness = new double[popSize][2];
+        double[][] parents    = new double[selectionSize][10];
+        double[][] children   = new double[selectionSize][10];
 
-        int[] parentsIndices  = new int[selectionSize];
-        int[] deceasedIndices = new int[selectionSize];
-
-        Arrays.fill(parentsIndices, -1);
-        Arrays.fill(deceasedIndices, -1);
+        int[] parentsIndices = new int[selectionSize];
+        int[] childIndices   = new int[selectionSize];
+        
+        Quicksort qs = new Quicksort();
 
         // fill in the fitness with the current population
         for( int i = 0; i < popSize; i++){
-            popFitness[i] = (double) evaluation_.evaluate(population[i]);
+            popFitness[i][0] = (double) evaluation_.evaluate(population[i]);
+            popFitness[i][1] = i;
         }
 
-        while(evals<evaluations_limit_){
+        // Sort the elements by fitness, ascending.
+        qs.sort(popFitness);
+        
+        System.out.println("Starting up");
 
-            // choose parents
-            for( int i = 0; i < selectionSize; i++){
-                // take unique random indices from the top part of the population
+        while(evals<evaluations_limit_){
+            System.out.println("Starting evaluations");
+
+            for(int i = 0; i < selectionSize; i++){
+                System.out.println("Starting birthing");
+                // choose parents
                 do{
                     index = popSize - 1 - rnd_.nextInt(selectionSize*2);
-                }while( parents.contains( population[i] ));
-                parents[i] = population[i];
+                    index = (int) popFitness[ index ][1];
+                }while( Arrays.asList(parentsIndices).contains( index ));
+                parents[i] = population[index];
+                parentsIndices[i] = index;
+
+                // choose index of children to come
+                do{
+                    index = rnd_.nextInt(selectionSize*2);
+                    index = (int) popFitness[ index ][1];
+                }while( Arrays.asList(childIndices).contains( index ));
+                childIndices[i] = index;
+
+                // when there are 4 new chosen parents, children get created and mutated
+                if( i%3 == 0 && i != 0){
+                    // children have a chance to be a clone of a parent or get a crossover of 4 parents
+                    if (rnd_.nextDouble() > 1 - crossOverProb) {
+                        // i-3 is the first index to use for these children and there parents
+                        // i-2 the second etc.
+                        children[i-3] = crossOver( parents[i-3], parents[i-2], parents[i-1], parents[i]   );
+                        children[i-2] = crossOver( parents[i],   parents[i-1], parents[i-2], parents[i-3] );
+                        children[i-1] = crossOver( parents[i-1], parents[i],   parents[i-3], parents[i-2] );
+                        children[i]   = crossOver( parents[i-2], parents[i-3], parents[i],   parents[i-1] );
+                    }
+                    else{
+                        children[i-3] = parents[i-3];
+                        children[i-2] = parents[i-2];
+                        children[i-1] = parents[i-1];
+                        children[i]   = parents[i];
+                    }
+                    children[i-3] = mutate(children[i-3]);
+                    children[i-2] = mutate(children[i-2]);
+                    children[i-1] = mutate(children[i-1]);
+                    children[i]   = mutate(children[i]);
+
+                    // the childIndices are the chosen individuals to get replaced by children
+                    population[ childIndices[i-3]] = children[i-3];
+                    population[ childIndices[i-2]] = children[i-2];
+                    population[ childIndices[i-1]] = children[i-1];
+                    population[ childIndices[i]]   = children[i];
+
+
+                    // update the fitnesses
+                    //popFitness[ childIndices[i-3]][0] = (double) evaluation_.evaluate( children[i-3]);
+                    //popFitness[ childIndices[i-2]][0] = (double) evaluation_.evaluate( children[i-2]);
+                    //popFitness[ childIndices[i-1]][0] = (double) evaluation_.evaluate( children[i-1]);
+                    //popFitness[ childIndices[i]][0]   = (double) evaluation_.evaluate( children[i]);
+                    System.out.println(childIndices[i-3] + "    " + i%3);
+                }
+                //evals++;
+            }
+
+            for (int k=0; k<popSize; k++) {
+                System.out.println(population[k]+"    "+popFitness[k][0]);
+                // Load popFitness with fitness results for each i'th element.
+                popFitness[k][0] = (double) evaluation_.evaluate(population[k]);
+                popFitness[k][1] = k;
+                evals++;
+                // Select survivors
             }
 
             // Sort the elements by fitness, ascending.
-            Arrays.sort(popFitness);
-            evals++;
+            qs.sort(popFitness);
         }
     }
 
