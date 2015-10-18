@@ -41,27 +41,16 @@ public class player50 implements ContestSubmission
 
         // Change settings(?)
         if(isMultimodal){
-            // Do sth
-        }else{
-            // Do sth else
+        }
+        else if(hasStructure){
+        }
+        else if(isSeparable){
+        }
+        else{
         }
 
-        // Change settings(?)
-        if(hasStructure){
-            // Do sth
-        }else{
-            // Do sth else
-        }
-
-        // Change settings(?)
-        if(isSeparable){
-            // Do sth
-        }else{
-            // Do sth else
-        }
-
-        popSize = 16; // Arbitrary for now. Should be <= evaluations_limit obviously.
-        selectionSize = popSize/4; // Arbitrary for now. Has to be an even number!
+        popSize = 16; // 
+        selectionSize = popSize/4; 
         mutationAdjustment = 0.15;
         crossOverProb = 1;
         initialize();
@@ -103,34 +92,40 @@ public class player50 implements ContestSubmission
         while(evals<evaluations_limit_){
 
             int i = 0;
+            // choose the parents to reproduce
             while (i < selectionSize) {
-                popIndex = rnd_.nextInt(selectionSize*2); // from the bottom performers (*(>=1) is needed to stop loop)
+                // from the bottom performers
+                popIndex = rnd_.nextInt(selectionSize*2); 
                 if (!contains(deceasedIndices, popIndex)) {
                     deceasedIndices[i] = popIndex; 
                     i++;
                 }
             }
 
-            int j = 0;
-            while (j < selectionSize) {
-                popIndex = popSize-1-rnd_.nextInt(selectionSize*2); // from the top performers
+            i = 0;
+            // choose the least fit to die out
+            while (i < selectionSize) {
+                // from the top performers
+                popIndex = popSize-1-rnd_.nextInt(selectionSize*2); 
                 if (!contains(parentsIndices, popIndex)) {
-                    parentsIndices[j] = popIndex; 
-                    j++;
+                    parentsIndices[i] = popIndex; 
+                    i++;
                 }
             }
 
             int parent1Index, parent2Index, parent3Index, parent4Index;
             int child1Index, child2Index, child3Index, child4Index;
-            for (int l=0; l<selectionSize; l+=4) {              
-                parent1Index = (int) popFitness[parentsIndices[l]][1];
-                parent2Index = (int) popFitness[parentsIndices[l+1]][1];
-                parent3Index = (int) popFitness[parentsIndices[l+2]][1];
-                parent4Index = (int) popFitness[parentsIndices[l+3]][1];
+            // make children with every 4 parents in the selected group
+            for (i=0; i<selectionSize; i+=4) {              
+                parent1Index = (int) popFitness[parentsIndices[i]][1];
+                parent2Index = (int) popFitness[parentsIndices[i+1]][1];
+                parent3Index = (int) popFitness[parentsIndices[i+2]][1];
+                parent4Index = (int) popFitness[parentsIndices[i+3]][1];
                 parent1 = population[parent1Index];
                 parent2 = population[parent2Index];
                 parent3 = population[parent3Index];
                 parent4 = population[parent4Index];
+                // do crossover
                 if (rnd_.nextDouble() > 1 - crossOverProb) {
                     child1 = crossOver(parent1, parent2, parent3, parent4);
                     child2 = crossOver(parent4, parent3, parent2, parent1);
@@ -142,29 +137,30 @@ public class player50 implements ContestSubmission
                     child3 = parent3;
                     child4 = parent4;
                 }
+                // mutate each child
                 child1 = mutate(child1);
                 child2 = mutate(child2);
                 child3 = mutate(child3);
                 child4 = mutate(child4);
-                child1Index = (int) popFitness[deceasedIndices[l]][1];
-                child2Index = (int) popFitness[deceasedIndices[l+1]][1];
+                child1Index = (int) popFitness[deceasedIndices[i]][1];
+                child2Index = (int) popFitness[deceasedIndices[i+1]][1];
+                child3Index = (int) popFitness[deceasedIndices[i+2]][1];
+                child4Index = (int) popFitness[deceasedIndices[i+3]][1];
                 population[child1Index] = child1;
                 population[child2Index] = child2;
-                child3Index = (int) popFitness[deceasedIndices[l+2]][1];
-                child4Index = (int) popFitness[deceasedIndices[l+3]][1];
                 population[child3Index] = child3;
                 population[child4Index] = child4;
             }
 
-            for (int k=0; k<popSize; k++) {
-                // Load popFitness with fitness results for each i'th element.
-                popFitness[k][0] = (double) evaluation_.evaluate(population[k]);
-                popFitness[k][1] = k;
+            for (i=0; i<popSize; i++) {
+                if (evals > evaluations_limit_) break;
+                // load popFitness with the new fitnesses of the population
+                popFitness[i][0] = (double) evaluation_.evaluate(population[i]);
+                popFitness[i][1] = i;
                 evals++;
-                // Select survivors
             }
 
-            // Sort the elements by fitness, ascending.
+            // Sort the elements by fitness, ascending, so we know which individuals are the best and worst
             qs.sort(popFitness);
         }
     }
