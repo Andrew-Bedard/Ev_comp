@@ -65,7 +65,7 @@ public class player50 implements ContestSubmission
 
         popSize = 16; // Arbitrary for now. Should be <= evaluations_limit obviously.
         nrParents = 4;
-        selectionSize = popSize/4; // Arbitrary for now. Has to be a multitude of 4!
+        selectionSize = (int) popSize/nrParents; // selectionSize needs to be a multitude of the nrParents
         mutationAdjustment = 0.03;
         crossOverProb = 1;
         initialize();
@@ -99,21 +99,15 @@ public class player50 implements ContestSubmission
         Quicksort qs = new Quicksort();
 
         // fill in the fitness with the current population
-        for( int i = 0; i < popSize; i++){
-            popFitness[i][0] = (double) evaluation_.evaluate(population[i]);
-            popFitness[i][1] = i;
-        }
+        popFitness = calculate_fitness(popFitness);
+        evals += popSize;
 
         // Sort the elements by fitness, ascending.
         qs.sort(popFitness);
-        
-        System.out.println("Starting up");
 
         while(evals<evaluations_limit_){
-            System.out.println("Starting evaluations");
 
             for(int i = 0; i < selectionSize; i++){
-                System.out.println("Starting birthing");
                 // choose parents
                 do{
                     index = popSize - 1 - rnd_.nextInt(selectionSize*2);
@@ -129,7 +123,7 @@ public class player50 implements ContestSubmission
                 }while( Arrays.asList(childIndices).contains( index ));
                 childIndices[i] = index;
 
-                // when there are 4 new chosen parents, children get created and mutated
+                // when there are 4 (nrParents) new chosen parents, children get created and mutated
                 if( i%3 == 0 && i != 0){
                     // children have a chance to be a clone of a parent or get a crossover of 4 parents
                     if (rnd_.nextDouble() > 1 - crossOverProb) {
@@ -168,27 +162,20 @@ public class player50 implements ContestSubmission
                 //evals++;
             }
 
-            for (int k=0; k<popSize; k++) {
-                System.out.println(population[k]+"    "+popFitness[k][0]);
-                // Load popFitness with fitness results for each i'th element.
-                popFitness[k][0] = (double) evaluation_.evaluate(population[k]);
-                popFitness[k][1] = k;
-                evals++;
-                // Select survivors
-            }
+            popFitness = calculate_fitness(popFitness);
+            evals += popSize;
 
             // Sort the elements by fitness, ascending.
             qs.sort(popFitness);
         }
     }
-
-    private boolean contains(final int[] array, final int key) {
-        for (final int i : array) {
-            if (i == key) {
-                return true;
-            }
+    
+    private double[][] calculate_fitness(double[][] fitness){
+        for( int i = 0; i < popSize; i++){
+            fitness[i][0] = (double) evaluation_.evaluate(population[i]);
+            fitness[i][1] = i;
         }
-        return false;
+        return fitness;
     }
 
     private double[] mutate(double[] child) {
