@@ -19,6 +19,10 @@ public class player50 implements ContestSubmission
     private double crossOverProb;
     private double[][] population;
 
+    private boolean structured = false;
+    private boolean multimodal = false;
+    private boolean separable  = false;
+
     public player50()
     {
         rnd_ = new Random();
@@ -42,31 +46,24 @@ public class player50 implements ContestSubmission
         boolean hasStructure = Boolean.parseBoolean(props.getProperty("Regular"));
         boolean isSeparable = Boolean.parseBoolean(props.getProperty("Separable"));
 
-        // Change settings(?)
         if(isMultimodal){
-            // Do sth
-        }else{
-            // Do sth else
+            multimodal = true;
+            System.out.println("Multimodal");
         }
-
-        // Change settings(?)
         if(hasStructure){
-            // Do sth
-        }else{
-            // Do sth else
+            structured = true;
+            System.out.println("Structured");
         }
-
-        // Change settings(?)
         if(isSeparable){
-            // Do sth
-        }else{
-            // Do sth else
+            separable = true;
+            System.out.println("Separable");
         }
 
-        popSize = 16; // Arbitrary for now. Should be <= evaluations_limit obviously.
-        nrParents = 4;
-        selectionSize = (int) popSize/nrParents; // selectionSize needs to be a multitude of the nrParents
-        mutationAdjustment = 0.03;
+        popSize = 200; // Arbitrary for now. Should be <= evaluations_limit obviously.
+        nrParents = 8;
+        // Needs to be lager then nrParents, the top 50 and bottom 50 will be chosen for parents and children respectively
+        selectionSize = 20;
+        mutationAdjustment = 0.015;
         crossOverProb = 1;
         initialize();
     }
@@ -107,63 +104,62 @@ public class player50 implements ContestSubmission
 
         while(evals<evaluations_limit_){
 
+            if(multimodal){
+                // do sth
+            }
+            if(structured){
+                // the chance at crossover and the change at mutation gets smaller the longer this runs
+                if(crossOverProb > 0.2){
+                    crossOverProb -= evals / (double) evaluations_limit_;
+                }
+                if(mutationAdjustment > 0.005){
+                    mutationAdjustment -= evals / (double) evaluations_limit_;
+                }
+            }
+            if(separable){
+                // do sth
+            }
+
             for(int i = 0; i < selectionSize; i++){
                 // choose parents
                 do{
-                    index = popSize - 1 - rnd_.nextInt(selectionSize*2);
-                    index = (int) popFitness[ index ][1];
+                    index = popSize - 1 - rnd_.nextInt(selectionSize);
                 }while( Arrays.asList(parentsIndices).contains( index ));
                 parents[i] = population[index];
                 parentsIndices[i] = index;
 
                 // choose index of children to come
                 do{
-                    index = rnd_.nextInt(selectionSize*2);
-                    index = (int) popFitness[ index ][1];
+                    index = rnd_.nextInt(selectionSize);
                 }while( Arrays.asList(childIndices).contains( index ));
                 childIndices[i] = index;
 
                 // when there are 4 (nrParents) new chosen parents, children get created and mutated
-                if( i%3 == 0 && i != 0){
-                    // children have a chance to be a clone of a parent or get a crossover of 4 parents
-                    if (rnd_.nextDouble() > 1 - crossOverProb) {
-                        // i-3 is the first index to use for these children and there parents
-                        // i-2 the second etc.
-                        children[i-3] = crossOver( parents[i-3], parents[i-2], parents[i-1], parents[i]   );
-                        children[i-2] = crossOver( parents[i],   parents[i-1], parents[i-2], parents[i-3] );
-                        children[i-1] = crossOver( parents[i-1], parents[i],   parents[i-3], parents[i-2] );
-                        children[i]   = crossOver( parents[i-2], parents[i-3], parents[i],   parents[i-1] );
+                if( i%nrParents-1 == 0 && i != 0){
+                    // only 4 parents can be used for the crossover, so if nrParents > 8 the last few won't be used
+                    for (int j=0; j<nrParents; j++){
+                        if (evals > evaluations_limit_) break;
+                        // children have a chance to be a clone of a parent or get a crossover of 4 parents
+                        if (rnd_.nextDouble() > 1 - crossOverProb) {
+                            children[j] = crossOver(parents[j], parents[j+1%nrParents], parents[j+2%nrParents], parents[j+3%nrParents]);
+                        }
+                        else{
+                            children[j] = parents[j];
+                        }
+                        children[j] = mutate(children[j]);
+                        // the childIndices (the index in popFitness, so popFitness[index][0] is the index in the population)
+                        // are the chosen individuals to get replaced by children
+                        population[ (int) popFitness[ childIndices[j]][1]] = children[j];
+                        // update the fitness of the children
+                        popFitness[ childIndices[j]][0] = (double) evaluation_.evaluate( children[j]);
+                        evals++;
                     }
-                    else{
-                        children[i-3] = parents[i-3];
-                        children[i-2] = parents[i-2];
-                        children[i-1] = parents[i-1];
-                        children[i]   = parents[i];
-                    }
-                    children[i-3] = mutate(children[i-3]);
-                    children[i-2] = mutate(children[i-2]);
-                    children[i-1] = mutate(children[i-1]);
-                    children[i]   = mutate(children[i]);
-
-                    // the childIndices are the chosen individuals to get replaced by children
-                    population[ childIndices[i-3]] = children[i-3];
-                    population[ childIndices[i-2]] = children[i-2];
-                    population[ childIndices[i-1]] = children[i-1];
-                    population[ childIndices[i]]   = children[i];
-
-
-                    // update the fitnesses
-                    //popFitness[ childIndices[i-3]][0] = (double) evaluation_.evaluate( children[i-3]);
-                    //popFitness[ childIndices[i-2]][0] = (double) evaluation_.evaluate( children[i-2]);
-                    //popFitness[ childIndices[i-1]][0] = (double) evaluation_.evaluate( children[i-1]);
-                    //popFitness[ childIndices[i]][0]   = (double) evaluation_.evaluate( children[i]);
-                    System.out.println(childIndices[i-3] + "    " + i%3);
                 }
-                //evals++;
             }
 
-            popFitness = calculate_fitness(popFitness);
-            evals += popSize;
+            for (int i=0; i<popSize; i++){
+                popFitness[i][1] = i;
+            }
 
             // Sort the elements by fitness, ascending.
             qs.sort(popFitness);
@@ -196,11 +192,16 @@ public class player50 implements ContestSubmission
     private double[] crossOver(double[] parent1, double[] parent2, double[] parent3, double[] parent4) {
         double[] solution = new double[10];
 
+
         // choose 3 points in the array to get the solutions of the 4 parents in the child
         int coMidPoint  = rnd_.nextInt(6)+2;
         int coPointStart= rnd_.nextInt(coMidPoint-1)+1;
         int coPointEnd  = coMidPoint + 2 + rnd_.nextInt(8-coMidPoint);
 
+        for (int i=0; i<10; i++) {
+            solution[i] = (parent1[i]+parent2[i]+parent3[i]+parent4[i])/4; 
+        }
+        /*
         for (int i=0; i<10; i++) {
             if (i<coPointStart) {
                 solution[i] = parent1[i];
@@ -212,11 +213,11 @@ public class player50 implements ContestSubmission
                 solution[i] = parent4[i];
             }
         }
-
+        */
         return solution;
     }
 
     public static void main(String[] args) {
-        // TODO Auto-generated method stub
+        // Neede
     }
 }
